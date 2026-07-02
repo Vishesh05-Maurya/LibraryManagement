@@ -1,14 +1,16 @@
 import type { NextConfig } from "next";
 
+const isExport = process.env.NEXT_EXPORT === 'true';
+
 const nextConfig: NextConfig = {
+  ...(isExport ? { output: 'export' } : {}),
+  images: {
+    unoptimized: true,
+  },
   eslint: {
-    // Warning: Dangerously allow production builds to successfully complete even if
-    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
     ignoreBuildErrors: true,
   },
 };

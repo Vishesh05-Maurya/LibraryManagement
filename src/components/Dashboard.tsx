@@ -23,7 +23,7 @@ import {
   X,
   CreditCard
 } from 'lucide-react';
-import { allotSeat, renewSubscription, vacateSeat, changeSeat, toggleMaintenance } from '../actions/crmActions';
+// Mongoose Server Actions are bypassed in favor of unified REST calls
 
 interface StudentData {
   _id: string;
@@ -55,16 +55,18 @@ interface Metrics {
 }
 
 interface DashboardProps {
-  initialSeats: SeatData[];
-  initialDueOrOverdue: StudentData[];
-  initialMetrics: Metrics;
+  initialSeats?: SeatData[];
+  initialDueOrOverdue?: StudentData[];
+  initialMetrics?: Metrics;
   adminEmail?: string;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+
 export default function Dashboard({ 
-  initialSeats, 
-  initialDueOrOverdue, 
-  initialMetrics,
+  initialSeats = [], 
+  initialDueOrOverdue = [], 
+  initialMetrics = { totalActive: 0, totalOccupied: 0, totalAvailable: 0, totalMaintenance: 0, monthlyRevenue: 0 },
   adminEmail = 'Chhaya Admin'
 }: DashboardProps) {
   const [isPending, startTransition] = useTransition();
@@ -75,6 +77,7 @@ export default function Dashboard({
 
   React.useEffect(() => {
     setMounted(true);
+    refreshData();
   }, []);
 
   // Search filter for student name/phone
@@ -114,13 +117,16 @@ export default function Dashboard({
 
   // Helper: Refresh dashboard data client-side after actions
   const refreshData = async () => {
-    // We can call getDashboardData or import it dynamically. Since it's a server action:
-    const { getDashboardData } = await import('../actions/crmActions');
-    const res = await getDashboardData();
-    if (res.success && res.seats) {
-      setSeats(res.seats);
-      setDueOrOverdue(res.dueOrOverdueStudents || []);
-      setMetrics(res.metrics || initialMetrics);
+    try {
+      const response = await fetch(`${API_BASE}/api/crm`);
+      const res = await response.json();
+      if (res.success && res.seats) {
+        setSeats(res.seats);
+        setDueOrOverdue(res.dueOrOverdueStudents || []);
+        setMetrics(res.metrics || initialMetrics);
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
     }
   };
 
@@ -190,57 +196,77 @@ export default function Dashboard({
     }
 
     startTransition(async () => {
-      const res = await allotSeat({
-        name: allotForm.name,
-        contactNumber: allotForm.contactNumber,
-        seatNumber: allotSeatNum,
-        joinDate: allotForm.joinDate,
-        paymentStatus: allotForm.paymentStatus,
-        paymentMethod: allotForm.paymentMethod,
-        shift: allotForm.shift
-      });
-
-      if (res.success) {
-        triggerToast(`Seat ${allotSeatNum} successfully allotted to ${allotForm.name}!`, 'success');
-        setAllotModalOpen(false);
-        setAllotForm({
-          name: '',
-          contactNumber: '',
-          joinDate: new Date().toISOString().split('T')[0],
-          paymentStatus: 'Paid',
-          paymentMethod: 'UPI',
-          shift: 'Day'
+      try {
+        const response = await fetch(`${API_BASE}/api/crm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'allot',
+            data: {
+              name: allotForm.name,
+              contactNumber: allotForm.contactNumber,
+              seatNumber: allotSeatNum,
+              joinDate: allotForm.joinDate,
+              paymentStatus: allotForm.paymentStatus,
+              paymentMethod: allotForm.paymentMethod,
+              shift: allotForm.shift
+            }
+          })
         });
-        await refreshData();
-      } else {
-        triggerToast(res.error || 'Failed to allot seat', 'error');
+        const res = await response.json();
+
+        if (res.success) {
+          triggerToast(`Seat ${allotSeatNum} successfully allotted to ${allotForm.name}!`, 'success');
+          setAllotModalOpen(false);
+          setAllotForm({
+            name: '',
+            contactNumber: '',
+            joinDate: new Date().toISOString().split('T')[0],
+            paymentStatus: 'Paid',
+            paymentMethod: 'UPI',
+            shift: 'Day'
+          });
+          await refreshData();
+        } else {
+          triggerToast(res.error || 'Failed to allot seat', 'error');
+        }
+      } catch (err: any) {
+        triggerToast(err.message || 'Network error', 'error');
       }
     });
   };
 
   const handleRenew = async (studentId: string, studentName: string) => {
     startTransition(async () => {
-      const res = await renewSubscription(studentId);
-      if (res.success) {
-        triggerToast(`Extended subscription for ${studentName} by 30 days.`, 'success');
-        await refreshData();
-        // If details modal is open for this student, update selected seat view
-        if (selectedSeat?.currentStudentId?._id === studentId) {
-          const updatedSeat = seats.find(s => s._id === selectedSeat._id);
-          if (updatedSeat) {
-            // Re-fetch to update state
+      try {
+        const response = await fetch(`${API_BASE}/api/crm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'renew',
+            data: { studentId }
+          })
+        });
+        const res = await response.json();
+        if (res.success) {
+          triggerToast(`Extended subscription for ${studentName} by 30 days.`, 'success');
+          await refreshData();
+          // If details modal is open for this student, update selected seat view
+          if (selectedSeat?.currentStudentId?._id === studentId) {
             setTimeout(async () => {
-              const { getDashboardData } = await import('../actions/crmActions');
-              const r = await getDashboardData();
+              const fetchRes = await fetch(`${API_BASE}/api/crm`);
+              const r = await fetchRes.json();
               if (r.success) {
                 const refreshedSeat = r.seats?.find((s: any) => s._id === selectedSeat._id);
                 if (refreshedSeat) setSelectedSeat(refreshedSeat);
               }
             }, 200);
           }
+        } else {
+          triggerToast(res.error || 'Failed to renew subscription', 'error');
         }
-      } else {
-        triggerToast(res.error || 'Failed to renew subscription', 'error');
+      } catch (err: any) {
+        triggerToast(err.message || 'Network error', 'error');
       }
     });
   };
@@ -250,15 +276,27 @@ export default function Dashboard({
     const { seatNumber, currentStudentId } = selectedSeat;
     
     startTransition(async () => {
-      const res = await vacateSeat(seatNumber, currentStudentId._id);
-      if (res.success) {
-        triggerToast(`Seat ${seatNumber} is now vacant. Record archived.`, 'success');
-        setConfirmVacate(false);
-        setDetailsModalOpen(false);
-        setSelectedSeat(null);
-        await refreshData();
-      } else {
-        triggerToast(res.error || 'Failed to vacate seat', 'error');
+      try {
+        const response = await fetch(`${API_BASE}/api/crm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'vacate',
+            data: { seatNumber, studentId: currentStudentId._id }
+          })
+        });
+        const res = await response.json();
+        if (res.success) {
+          triggerToast(`Seat ${seatNumber} is now vacant. Record archived.`, 'success');
+          setConfirmVacate(false);
+          setDetailsModalOpen(false);
+          setSelectedSeat(null);
+          await refreshData();
+        } else {
+          triggerToast(res.error || 'Failed to vacate seat', 'error');
+        }
+      } catch (err: any) {
+        triggerToast(err.message || 'Network error', 'error');
       }
     });
   };
@@ -271,31 +309,55 @@ export default function Dashboard({
     const newSeat = parseInt(targetSeatNum);
 
     startTransition(async () => {
-      const res = await changeSeat(student._id, oldSeat, newSeat);
-      if (res.success) {
-        triggerToast(`Moved ${student.name} from Seat ${oldSeat} to Seat ${newSeat}`, 'success');
-        setChangeSeatModalOpen(false);
-        setDetailsModalOpen(false);
-        setSelectedSeat(null);
-        setTargetSeatNum('');
-        await refreshData();
-      } else {
-        triggerToast(res.error || 'Failed to transfer seat', 'error');
+      try {
+        const response = await fetch(`${API_BASE}/api/crm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'change',
+            data: { studentId: student._id, oldSeatNumber: oldSeat, newSeatNumber: newSeat }
+          })
+        });
+        const res = await response.json();
+        if (res.success) {
+          triggerToast(`Moved ${student.name} from Seat ${oldSeat} to Seat ${newSeat}`, 'success');
+          setChangeSeatModalOpen(false);
+          setDetailsModalOpen(false);
+          setSelectedSeat(null);
+          setTargetSeatNum('');
+          await refreshData();
+        } else {
+          triggerToast(res.error || 'Failed to transfer seat', 'error');
+        }
+      } catch (err: any) {
+        triggerToast(err.message || 'Network error', 'error');
       }
     });
   };
 
   const handleToggleMaintenance = async (seatNum: number, currentStatus: 'Available' | 'Maintenance') => {
     startTransition(async () => {
-      const res = await toggleMaintenance(seatNum, currentStatus);
-      if (res.success) {
-        const next = res.nextStatus === 'Maintenance' ? 'placed under maintenance' : 'restored to available';
-        triggerToast(`Seat ${seatNum} has been ${next}.`, 'success');
-        setDetailsModalOpen(false);
-        setSelectedSeat(null);
-        await refreshData();
-      } else {
-        triggerToast(res.error || 'Failed to change maintenance status', 'error');
+      try {
+        const response = await fetch(`${API_BASE}/api/crm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'toggleMaintenance',
+            data: { seatNumber: seatNum, currentStatus }
+          })
+        });
+        const res = await response.json();
+        if (res.success) {
+          const next = res.nextStatus === 'Maintenance' ? 'placed under maintenance' : 'restored to available';
+          triggerToast(`Seat ${seatNum} has been ${next}.`, 'success');
+          setDetailsModalOpen(false);
+          setSelectedSeat(null);
+          await refreshData();
+        } else {
+          triggerToast(res.error || 'Failed to change maintenance status', 'error');
+        }
+      } catch (err: any) {
+        triggerToast(err.message || 'Network error', 'error');
       }
     });
   };
