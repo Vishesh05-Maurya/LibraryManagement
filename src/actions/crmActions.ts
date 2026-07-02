@@ -24,6 +24,14 @@ export async function getDashboardData() {
         model: Student,
       });
 
+    // Ensure data integrity: Deactivate any student who is marked active but holds no seat
+    const occupiedSeats = await Seat.find({ status: 'Occupied' }, 'currentStudentId');
+    const occupiedStudentIds = occupiedSeats.map(s => s.currentStudentId).filter(Boolean);
+    await Student.updateMany(
+      { _id: { $nin: occupiedStudentIds }, isActive: true },
+      { $set: { isActive: false } }
+    );
+
     // Fetch due or overdue active students
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
@@ -161,23 +169,26 @@ export async function renewSubscription(studentId: string) {
   }
 }
 
-// 4. Vacate Seat / Remove Student
-export async function vacateSeat(seatNumber: number, studentId: string) {
+export async function vacateSeat(seatNumber: number, studentId?: string) {
   try {
     await checkAdminAuth();
     await dbConnect();
-
-    // Mark student as inactive
-    const student = await Student.findById(studentId);
-    if (student) {
-      student.isActive = false;
-      await student.save();
-    }
 
     // Reset Seat
     const seat = await Seat.findOne({ seatNumber });
     if (!seat) {
       throw new Error(`Seat ${seatNumber} not found`);
+    }
+
+    const resolvedStudentId = studentId || seat.currentStudentId;
+
+    // Mark student as inactive
+    if (resolvedStudentId) {
+      const student = await Student.findById(resolvedStudentId);
+      if (student) {
+        student.isActive = false;
+        await student.save();
+      }
     }
 
     seat.status = 'Available';
