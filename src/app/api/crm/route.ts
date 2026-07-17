@@ -5,7 +5,8 @@ import {
   renewSubscription, 
   vacateSeat, 
   changeSeat, 
-  toggleMaintenance 
+  toggleMaintenance,
+  updateProfile
 } from '../../../actions/crmActions';
 
 const corsHeaders = {
@@ -44,13 +45,16 @@ export async function POST(req: Request) {
         res = await renewSubscription(data.studentId);
         break;
       case 'vacate':
-        res = await vacateSeat(data.seatNumber);
+        res = await vacateSeat(data.seatNumber, data.studentId);
         break;
       case 'change':
-        res = await changeSeat(data.studentId, data.newSeatNumber);
+        res = await changeSeat(data.studentId, data.oldSeatNumber, data.newSeatNumber);
         break;
       case 'toggleMaintenance':
         res = await toggleMaintenance(data.seatNumber, data.currentStatus);
+        break;
+      case 'updateProfile':
+        res = await updateProfile(data);
         break;
       default:
         return NextResponse.json(

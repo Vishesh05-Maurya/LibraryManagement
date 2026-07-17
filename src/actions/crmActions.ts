@@ -82,6 +82,7 @@ interface AllotSeatInput {
   paymentStatus: 'Paid' | 'Pending';
   paymentMethod: 'Cash' | 'UPI' | 'Bank Transfer';
   shift: 'Day' | 'Night' | 'Day & Night';
+  price: number;
 }
 
 export async function allotSeat(data: AllotSeatInput) {
@@ -89,7 +90,7 @@ export async function allotSeat(data: AllotSeatInput) {
     await checkAdminAuth();
     await dbConnect();
 
-    const { name, contactNumber, seatNumber, joinDate, paymentStatus, paymentMethod, shift } = data;
+    const { name, contactNumber, seatNumber, joinDate, paymentStatus, paymentMethod, shift, price } = data;
 
     // Validate contact number format
     if (!/^\d{10}$/.test(contactNumber)) {
@@ -110,10 +111,29 @@ export async function allotSeat(data: AllotSeatInput) {
     const renewalDate = new Date(parsedJoinDate);
     renewalDate.setDate(renewalDate.getDate() + 30);
 
-    // Calculate price based on selected shift
-    const price = shift === 'Day & Night' ? 900 : 500;
+    // Generate unique studentId
+    const generateId = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let res = '';
+      for (let i = 0; i < 6; i++) {
+        res += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return res;
+    };
+    
+    let generatedStudentId = generateId();
+    let isUnique = false;
+    while (!isUnique) {
+      const existing = await Student.findOne({ studentId: generatedStudentId });
+      if (!existing) {
+        isUnique = true;
+      } else {
+        generatedStudentId = generateId();
+      }
+    }
 
     const student = new Student({
+      studentId: generatedStudentId,
       name,
       contactNumber,
       seatNumber,
@@ -134,7 +154,7 @@ export async function allotSeat(data: AllotSeatInput) {
     await seat.save();
 
     revalidatePath('/');
-    return { success: true, studentId: savedStudent._id.toString() };
+    return { success: true, studentId: savedStudent._id.toString(), generatedStudentId: savedStudent.studentId };
   } catch (error: any) {
     console.error('[crmActions:allotSeat] Error:', error);
     return { success: false, error: error.message || 'Failed to allot seat' };
@@ -275,3 +295,36 @@ export async function toggleMaintenance(seatNumber: number, currentStatus: 'Avai
     return { success: false, error: error.message || 'Failed to toggle seat maintenance' };
   }
 }
+
+// 7. Update Student Profile
+export async function updateProfile(data: { studentId: string, name: string, contactNumber: string, shift: string, price: number }) {
+  try {
+    await checkAdminAuth();
+    await dbConnect();
+
+    const { studentId, name, contactNumber, shift, price } = data;
+
+    if (!/^\d{10}$/.test(contactNumber)) {
+      throw new Error('Contact number must be exactly 10 digits and contain only numbers.');
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      throw new Error('Student record not found');
+    }
+
+    student.name = name;
+    student.contactNumber = contactNumber;
+    student.shift = shift as any;
+    student.price = price;
+
+    await student.save();
+
+    revalidatePath('/');
+    return { success: true };
+  } catch (error: any) {
+    console.error('[crmActions:updateProfile] Error:', error);
+    return { success: false, error: error.message || 'Failed to update profile' };
+  }
+}
+

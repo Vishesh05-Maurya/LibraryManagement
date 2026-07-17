@@ -2,6 +2,7 @@
 import mongoose, { Schema, Document, model, models } from 'mongoose';
 
 export interface IStudent extends Document {
+  studentId: string;
   name: string;
   contactNumber: string;
   seatNumber: number;
@@ -18,6 +19,12 @@ export interface IStudent extends Document {
 
 const StudentSchema = new Schema<IStudent>(
   {
+    studentId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true
+    },
     name: { 
       type: String, 
       required: [true, 'Student name is required'],

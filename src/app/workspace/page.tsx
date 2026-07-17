@@ -3,5 +3,5 @@
 import Dashboard from '../../components/Dashboard';
 
 export default function WorkspacePage() {
-  return <Dashboard />;
+  return <Dashboard initialTab="map" />;
 }
