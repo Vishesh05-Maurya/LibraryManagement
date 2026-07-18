@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function AttendancePage() {
@@ -87,16 +88,19 @@ export default function AttendancePage() {
 
   if (sessionExpired) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 text-center space-y-5 animate-in fade-in zoom-in duration-300">
-          <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-            <CheckCircle2 className="w-10 h-10 text-green-600" />
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Image & Gradients */}
+        <img src="/bg2.png" alt="Library Background" className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none" />
+        
+        <div className="bg-slate-900/60 border border-slate-800 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-500/10 w-full max-w-md p-8 text-center space-y-5 z-10 animate-in fade-in zoom-in duration-300">
+          <div className="mx-auto w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Thank You!</h1>
-          <p className="text-gray-600 text-lg font-medium">{sessionExpired}</p>
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-sm font-semibold text-gray-400 uppercase tracking-widest">Session Complete</p>
-            <p className="text-xs text-gray-500 mt-2">You may safely close this tab.</p>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">Thank You!</h1>
+          <p className="text-slate-300 text-lg font-medium">{sessionExpired}</p>
+          <div className="mt-8 pt-6 border-t border-slate-800">
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Session Complete</p>
+            <p className="text-xs text-slate-600 mt-2">You may safely close this tab.</p>
           </div>
         </div>
       </div>
@@ -104,16 +108,22 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-6">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Background Image & Gradients */}
+      <img src="/bg2.png" alt="Library Background" className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none" />
+      
+      <div className="bg-slate-900/60 border border-slate-800 backdrop-blur-xl rounded-3xl shadow-2xl shadow-emerald-500/10 w-full max-w-md p-6 sm:p-8 space-y-6 z-10 animate-in fade-in zoom-in duration-300">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Library Attendance</h1>
-          <p className="text-sm text-gray-500 mt-1">Scan your ID to check-in or check-out</p>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-xs font-semibold uppercase tracking-wider mb-4">
+             Mark Your Attendance Here!
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-linear-to-r from-white via-slate-100 to-emerald-400 bg-clip-text text-transparent">Chhaya Library</h1>
+          <p className="text-sm text-slate-400 mt-1.5">Scan your ID to check-in for today!</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 pt-2">
           <div>
-            <label htmlFor="studentId" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="studentId" className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
               Student ID
             </label>
             <div className="relative">
@@ -124,36 +134,36 @@ export default function AttendancePage() {
                 onChange={(e) => setStudentId(e.target.value.toUpperCase())}
                 disabled={isLoading}
                 placeholder="Enter ID"
-                className="w-full px-4 py-4 rounded-xl border-2 border-gray-300 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 transition-all outline-none disabled:bg-gray-100 disabled:cursor-not-allowed uppercase text-gray-900 font-extrabold text-2xl tracking-widest text-center shadow-inner placeholder:text-gray-400 placeholder:font-medium placeholder:tracking-normal placeholder:text-base"
+                className="w-full px-4 py-4 rounded-xl bg-slate-950/50 border border-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/60 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed uppercase text-white font-extrabold text-2xl tracking-widest text-center shadow-inner placeholder:text-slate-600 placeholder:font-medium placeholder:tracking-normal placeholder:text-base"
               />
               {isLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
                 </div>
               )}
             </div>
           </div>
 
-          <div className="min-h-[40px]">
+          <div className="min-h-[50px]">
             {studentName ? (
-              <div className={`flex flex-col gap-1 p-3 rounded-lg border ${alreadyMarked ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+              <div className={`flex flex-col gap-1 p-3.5 rounded-xl border ${alreadyMarked ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 shrink-0" />
-                  <span className="font-medium">Welcome, {studentName}</span>
+                  <span className="font-bold text-sm">Welcome, {studentName}</span>
                 </div>
                 {alreadyMarked && (
-                  <span className="text-sm font-semibold ml-7">Your attendance is already marked for today.</span>
+                  <span className="text-xs font-semibold ml-7 opacity-90">Your attendance is already marked for today.</span>
                 )}
               </div>
             ) : message?.type === 'error' ? (
-              <div className="flex items-center gap-2 text-red-700 bg-red-50 p-3 rounded-lg border border-red-200">
+              <div className="flex items-center gap-2 text-rose-300 bg-rose-500/10 p-3.5 rounded-xl border border-rose-500/20">
                 <XCircle className="w-5 h-5 shrink-0" />
-                <span className="font-medium">{message.text}</span>
+                <span className="font-bold text-sm">{message.text}</span>
               </div>
             ) : message?.type === 'success' ? (
-              <div className="flex items-center gap-2 text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 text-indigo-300 bg-indigo-500/10 p-3.5 rounded-xl border border-indigo-500/20">
                 <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <span className="font-medium">{message.text}</span>
+                <span className="font-bold text-sm">{message.text}</span>
               </div>
             ) : null}
           </div>
@@ -161,18 +171,18 @@ export default function AttendancePage() {
           <button
             onClick={handleSubmit}
             disabled={!studentName || isLoading || alreadyMarked}
-            className={`w-full font-semibold py-3 px-4 rounded-xl transition-all shadow-md active:transform active:scale-[0.98] ${
+            className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all shadow-md active:transform active:scale-[0.98] flex items-center justify-center gap-2 ${
               alreadyMarked 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
-                : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed'
+                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed shadow-none'
+                : 'bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400/20 disabled:opacity-50 disabled:cursor-not-allowed'
             }`}
           >
             {alreadyMarked ? 'Already Submitted' : 'Submit Attendance'}
           </button>
         </div>
         
-        <div className="mt-8 text-center text-xs text-gray-400">
-          <p>Please ensure you are connected to the library network.</p>
+        <div className="mt-6 pt-6 border-t border-slate-800/80 text-center text-xs font-medium text-slate-500">
+          <p>Please ensure you are connected to the network.</p>
         </div>
       </div>
     </div>

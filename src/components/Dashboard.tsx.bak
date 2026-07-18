@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useTransition, useMemo } from 'react';
-import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -75,23 +74,19 @@ export default function Dashboard({
   initialSeats = [], 
   initialDueOrOverdue = [], 
   initialMetrics = { totalActive: 0, totalOccupied: 0, totalAvailable: 0, totalMaintenance: 0, monthlyRevenue: 0 },
+  adminEmail = 'Chhaya Admin',
   initialTab = 'map'
 }: DashboardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [seats, setSeats] = useState<SeatData[]>(initialSeats);
+  const [dueOrOverdue, setDueOrOverdue] = useState<StudentData[]>(initialDueOrOverdue);
+  const [metrics, setMetrics] = useState<Metrics>(initialMetrics);
   const [mounted, setMounted] = useState(false);
-
-  const fetcher = (url: string) => fetch(url).then(res => res.json());
-  const { data: crmData, mutate } = useSWR(`${API_BASE}/api/crm`, fetcher, {
-    fallbackData: { success: true, seats: initialSeats, dueOrOverdueStudents: initialDueOrOverdue, metrics: initialMetrics }
-  });
-
-  const seats: SeatData[] = crmData?.seats || initialSeats;
-  const dueOrOverdue: StudentData[] = crmData?.dueOrOverdueStudents || initialDueOrOverdue;
-  const metrics: Metrics = crmData?.metrics || initialMetrics;
 
   React.useEffect(() => {
     setMounted(true);
+    refreshData();
   }, []);
 
   // Search filter for student name/phone
@@ -228,7 +223,20 @@ export default function Dashboard({
     setTimeout(() => setToast(null), 4000);
   };
 
-
+  // Helper: Refresh dashboard data client-side after actions
+  const refreshData = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/crm`);
+      const res = await response.json();
+      if (res.success && res.seats) {
+        setSeats(res.seats);
+        setDueOrOverdue(res.dueOrOverdueStudents || []);
+        setMetrics(res.metrics || initialMetrics);
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+    }
+  };
 
   // Helper: calculate days remaining until renewal
   const getDaysRemaining = (renewalDateStr: string) => {
@@ -334,7 +342,7 @@ export default function Dashboard({
             shift: 'Day',
             price: 500
           });
-          await mutate();
+          await refreshData();
         } else {
           triggerToast(res.error || 'Failed to allot seat', 'error');
         }
@@ -358,7 +366,7 @@ export default function Dashboard({
         const res = await response.json();
         if (res.success) {
           triggerToast(`Extended subscription for ${studentName} by 30 days.`, 'success');
-          await mutate();
+          await refreshData();
           // If details modal is open for this student, update selected seat view
           if (selectedSeat?.currentStudentId?._id === studentId) {
             setTimeout(async () => {
@@ -399,7 +407,7 @@ export default function Dashboard({
           setConfirmVacate(false);
           setDetailsModalOpen(false);
           setSelectedSeat(null);
-          await mutate();
+          await refreshData();
         } else {
           triggerToast(res.error || 'Failed to vacate seat', 'error');
         }
@@ -433,7 +441,7 @@ export default function Dashboard({
           setDetailsModalOpen(false);
           setSelectedSeat(null);
           setTargetSeatNum('');
-          await mutate();
+          await refreshData();
         } else {
           triggerToast(res.error || 'Failed to transfer seat', 'error');
         }
@@ -469,7 +477,7 @@ export default function Dashboard({
         if (response.ok && res.success) {
           triggerToast('Profile updated successfully!', 'success');
           setEditProfileModalOpen(false);
-          await mutate();
+          await refreshData();
           setSelectedSeat(prev => {
             if (!prev || !prev.currentStudentId) return prev;
             return {
@@ -509,7 +517,7 @@ export default function Dashboard({
           triggerToast(`Seat ${seatNum} has been ${next}.`, 'success');
           setDetailsModalOpen(false);
           setSelectedSeat(null);
-          await mutate();
+          await refreshData();
         } else {
           triggerToast(res.error || 'Failed to change maintenance status', 'error');
         }
@@ -652,7 +660,8 @@ export default function Dashboard({
 
         <div className="hidden md:flex items-center gap-4">
           <div className="flex flex-col text-right">
-            <span className="text-sm text-emerald-400 font-bold flex items-center justify-end gap-1">
+            <span className="text-sm font-semibold text-slate-300">{adminEmail}</span>
+            <span className="text-xs text-emerald-400 font-bold flex items-center justify-end gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
               Owner Admin
             </span>
